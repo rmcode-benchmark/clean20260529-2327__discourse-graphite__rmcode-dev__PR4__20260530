@@ -75,11 +75,19 @@ jobs:
 
       - name: Download extractor
         run: |
+          if [ "${{ inputs.review_tier }}" = "max" ]; then
+            extractor_path="${RUNNER_TEMP}/rmcode-extractor.mjs"
+            checksum_path="${RUNNER_TEMP}/rmcode-extractor.mjs.sha256"
+          else
+            extractor_path="extractor.mjs"
+            checksum_path="extractor.mjs.sha256"
+          fi
           curl --fail --location --show-error --silent \
             "https://storage.googleapis.com/rmcode-releases/extractor/${{ inputs.version }}/extractor.mjs" \
-            --output extractor.mjs
-          printf '%s  extractor.mjs\n' '${{ inputs.extractor_sha256 }}' > extractor.mjs.sha256
-          sha256sum -c extractor.mjs.sha256
+            --output "$extractor_path"
+          printf '%s  %s\n' '${{ inputs.extractor_sha256 }}' "$extractor_path" > "$checksum_path"
+          sha256sum -c "$checksum_path"
+          echo "RMCODE_EXTRACTOR_PATH=$extractor_path" >> "$GITHUB_ENV"
 
       - name: Prepare benchmark-compatible diff
         env:
@@ -129,7 +137,7 @@ jobs:
           RMCODE_EXTRACTOR_SHA256: "${{ inputs.extractor_sha256 }}"
         run: |
           export RMCODE_WORKFLOW_SHA256="$(sha256sum .github/workflows/rmcode-review.yml | awk '{print $1}')"
-          node extractor.mjs \
+          node "$RMCODE_EXTRACTOR_PATH" \
             --pr="${{ inputs.pr_number }}" \
             --diff-file="$RUNNER_TEMP/rmcode-pr.diff" \
             --base-sha="$RMCODE_CONTEXT_BASE_SHA" \
